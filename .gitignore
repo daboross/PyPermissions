@@ -9,9 +9,11 @@ target
 *.o
 *.so
 *.py[cod]
-*.html
 __pycache__
 
+# Documentation #
+#################
+/doxygen
 
 # Git #
 #######
