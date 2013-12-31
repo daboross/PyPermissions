@@ -70,7 +70,7 @@ class PermissionSet:
 
     def has(self, permission):
         """
-        Evaluates whether this PermissionSet has 'permission', defaulting to False if not set.
+        Evaluates whether this PermissionSet has the given permission, defaulting to False if not set.
         Will check each .* sub permission until the permission contains no '.'s.
 
         For example, if given 'plugin.permission.give', will first check 'plugin.permission.give', then

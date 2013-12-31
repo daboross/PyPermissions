@@ -9,6 +9,7 @@ target
 *.o
 *.so
 *.py[cod]
+*.html
 __pycache__
 
 
