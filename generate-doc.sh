@@ -9,7 +9,7 @@ echo -n "(continue?)"
 read
 git checkout gh-pages
 [[ "$(git rev-parse --abbrev-ref HEAD)" == "gh-pages" ]] || exit
-rm *
+rm -r *
 git add -A
 git commit -m "Auto"
 git checkout master
