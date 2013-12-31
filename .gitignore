@@ -11,11 +11,6 @@ target
 *.py[cod]
 __pycache__
 
-# Documentation #
-#################
-/sphinx
-generate-doc.sh
-
 # Git #
 #######
 .git
