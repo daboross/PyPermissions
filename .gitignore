@@ -1,36 +1,78 @@
-*.py[cod]
-
-# C extensions
+# Compiled source #
+###################
+bin
+out
+target
+*.com
+*.dll
+*.exe
+*.o
 *.so
+*.py[cod]
+__pycache__
 
-# Packages
+
+# Git #
+#######
+.git
+
+# Packages #
+############
+*.7z
+*.dmg
+*.gz
+*.iso
+*.jar
+*.rar
+*.tar
+*.zip
 *.egg
 *.egg-info
 dist
 build
 eggs
 parts
-bin
 var
 sdist
 develop-eggs
 .installed.cfg
 lib
 lib64
-__pycache__
 
-# Installer logs
+# Installer logs #
+##################
 pip-log.txt
 
-# Unit test / coverage reports
-.coverage
-.tox
-nosetests.xml
+# Logs and databases #
+######################
+*.log
+*.sql
+*.sqlite
 
-# Translations
-*.mo
+# OS generated files #
+######################
+.DS_Store
+ehthumbs.db
+Icon?
+Thumbs.db
 
-# Mr Developer
-.mr.developer.cfg
+# Project files #
+#####################
+.classpath
+.externalToolBuilders
+.idea
 .project
-.pydevproject
+.settings
+build
+dist
+nbproject
+atlassian-ide-plugin.xml
+build.xml
+nb-configuration.xml
+*.iml
+*.ipr
+*.iws
+
+# Misc files #
+##############
+*.bak
