@@ -7,6 +7,24 @@ class PermissionSet:
         self.permissions = {}
         self.cache = {}
 
+    def __cmp__(self, other):
+        if not isinstance(other, PermissionSet):
+            return False
+        return self.permissions.__cmp__(other.permissions)
+
+    def __getitem__(self, item):
+        return self.has(item)
+
+    def __invert__(self):
+        inverted_set = PermissionSet()
+        for permission, value in self.permissions.iteritems():
+            inverted_set.set(permission, value=not value, invalidate_cache=False)
+        inverted_set.invalidate_cache()
+        return inverted_set
+
+    def __str__(self):
+        return str(self.permissions)
+
     def invalidate_cache(self):
         """
         Invalidates the cache, useful when changing things in batch and using invalidate_cache=True.
@@ -22,7 +40,7 @@ class PermissionSet:
         self.permissions.pop(permission.lower(), None)
         self.invalidate_cache()
 
-    def add(self, permission, value=True, invalidate_cache=True):
+    def set(self, permission, value=True, invalidate_cache=True):
         """
         Adds or sets a permission in this PermissionSet.
 
@@ -35,7 +53,7 @@ class PermissionSet:
         if invalidate_cache:
             self.invalidate_cache()
 
-    def add_batch(self, permissions, invalidate_cache=True):
+    def set_batch(self, permissions, invalidate_cache=True):
         """
         Adds a batch of permissions to this PermissionSet.
 
@@ -46,7 +64,7 @@ class PermissionSet:
                 if you are calling multiple changing methods and will call invalidate_cache() afterwards
         """
         for permission in permissions.keys():
-            self.add(permission, value=permissions[permission], invalidate_cache=False)
+            self.set(permission, value=permissions[permission], invalidate_cache=False)
         if invalidate_cache:
             self.invalidate_cache()
 
@@ -61,19 +79,18 @@ class PermissionSet:
 
         This method does not use the cache, you should use has for permission checking
 
-        @type permission: str
+        @type permission: str | unicode
         @param permission: Permission string to check
         @return Whether or not the permission is set to true in this PermissionSet.
         """
-        value = self.permissions[permission]
-        while value is None:
+        permission = permission.lower()
+        while permission not in self.permissions:
             if '.' in permission:
-                permission = permission.rsplit('.', 2)[0]
-                value = self.permissions[permission]
+                permission = permission.rsplit('.', 1)[0] + "^all"
             else:
                 return False
 
-        return value
+        return self.permissions[permission]
 
     def has(self, permission):
         """
@@ -87,12 +104,16 @@ class PermissionSet:
         This method will use the cache, make sure you have used invalidate_cache() after using any changing methods with
         the 'invalidate_cache=False' parameter.
 
-        @type permission: str
+        @type permission: str | unicode
         @param permission: Permission string to check
         @return Whether or not the permission is set to true in this PermissionSet.
         """
-        value = self.cache[permission]
-        if value is None:
+        if not (isinstance(permission, str) or isinstance(permission, unicode)):
+            return False
+
+        if permission in self.cache:
+            return self.cache[permission]
+        else:
             value = self.evaluate(permission)
             self.cache[permission] = value
-        return value
+            return value
