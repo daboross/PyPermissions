@@ -1,11 +1,14 @@
 #!/bin/bash
 git add -A
 git commit
-if [[ "$(git log origin/$(git rev-parse --abbrev-ref HEAD)..HEAD --oneline)" ]]; then
+if [[ "$(git log origin/master..HEAD --oneline)" ]]; then
     git push "$@"
     git fetch origin
 fi
+echo -n "(continue?)"
+read
 git checkout gh-pages
+[[ "$(git rev-parse --abbrev-ref HEAD)" == "gh-pages" ]] || exit
 rm *
 git add -A
 git commit -m "Auto"
