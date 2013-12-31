@@ -1,14 +1,9 @@
-__format
-
 class PermissionSet:
     """
     Represents a set of permissions.
     """
 
     def __init__(self):
-        """
-        Initializes the PermissionSet
-        """
         self.permissions = {}
         self.cache = {}
 
@@ -21,8 +16,8 @@ class PermissionSet:
     def remove(self, permission):
         """
         Removes all settings for a given permission.
-        :type permission: str
-        :param permission: The permission to remove
+        @type permission: str
+        @param permission: The permission to remove
         """
         self.permissions.pop(permission.lower(), None)
         self.invalidate_cache()
@@ -31,9 +26,9 @@ class PermissionSet:
         """
         Adds or sets a permission in this PermissionSet.
 
-        :param permission: The permission to set
-        :param value: Whether to set this permission to True or False, defaulting to True
-        :param invalidate_cache: Whether or not to invalidate the cache after performing this action. Only specify False
+        @param permission: The permission to set
+        @param value: Whether to set this permission to True or False, defaulting to True
+        @param invalidate_cache: Whether or not to invalidate the cache after performing this action. Only specify False
                 if you are calling multiple changing methods and will call invalidate_cache afterwards
         """
         self.permissions[permission.lower()] = value
@@ -44,10 +39,10 @@ class PermissionSet:
         """
         Adds a batch of permissions to this PermissionSet.
 
-        :type permissions: dict
-        :type invalidate_cache: bool
-        :param permissions: Dictionary from str permission to boolean value
-        :param invalidate_cache; Whether or not to invalidate the cache after performing this action. Only specify False
+        @type permissions: dict
+        @type invalidate_cache: bool
+        @param permissions: Dictionary from str permission to boolean value
+        @param invalidate_cache; Whether or not to invalidate the cache after performing this action. Only specify False
                 if you are calling multiple changing methods and will call invalidate_cache() afterwards
         """
         for permission in permissions.keys():
@@ -66,9 +61,9 @@ class PermissionSet:
 
         This method does not use the cache, you should use has for permission checking
 
-        :type permission: str
-        :param permission: Permission string to check
-        :return Whether or not the permission is set to true in this PermissionSet.
+        @type permission: str
+        @param permission: Permission string to check
+        @return Whether or not the permission is set to true in this PermissionSet.
         """
         value = self.permissions[permission]
         while value is None:
@@ -92,9 +87,9 @@ class PermissionSet:
         This method will use the cache, make sure you have used invalidate_cache() after using any changing methods with
         the 'invalidate_cache=False' parameter.
 
-        :type permission: str
-        :param permission: Permission string to check
-        :return Whether or not the permission is set to true in this PermissionSet.
+        @type permission: str
+        @param permission: Permission string to check
+        @return Whether or not the permission is set to true in this PermissionSet.
         """
         value = self.cache[permission]
         if value is None:
