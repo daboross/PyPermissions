@@ -5,4 +5,4 @@ git add -A
 git commit
 git push
 git checkout master
-find . -type f -name '*.html' -exec rm {} \;
+find . -type f -name '*.html' -exec rm -i {} \;
