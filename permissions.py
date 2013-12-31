@@ -25,6 +25,9 @@ class PermissionSet:
     def __str__(self):
         return str(self.permissions)
 
+    def __unicode__(self):
+        return unicode(self.permissions)
+
     def invalidate_cache(self):
         """
         Invalidates the cache, useful when changing things in batch and using invalidate_cache=True.
