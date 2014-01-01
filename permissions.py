@@ -1,11 +1,41 @@
+class PermissionTree:
+    def __init__(self):
+        self.parent_tree = {}
+        self.child_tree = {}
+
+    def get_parents(self, permission):
+        """
+
+        @type permission: str | unicode
+        """
+        if permission not in self.parent_tree:
+            return []
+
+        parents = self.parent_tree[permission]
+
+        pass
+
+
+PermissionTree.default_tree = PermissionTree()
+
+
 class PermissionSet:
     """
     Represents a set of permissions.
     """
 
-    def __init__(self):
+    def __init__(self, tree=PermissionTree.default_tree):
+        """
+        Creates a new PermissionSet, default using the default_tree.
+        Specify a PermissionTree if you would like to edit permission inheritance, or just modify
+        PermissionTree.default_tree
+
+        @param tree: A permission tree to get inheriting permissions from
+        @type tree: PermissionTree
+        """
         self.permissions = {}
         self.cache = {}
+        self.permission_tree = tree
 
     def __cmp__(self, other):
         if not isinstance(other, PermissionSet):
@@ -14,6 +44,9 @@ class PermissionSet:
 
     def __getitem__(self, item):
         return self.has(item)
+
+    def __delitem__(self, key):
+        self.remove(key)
 
     def __invert__(self):
         inverted_set = PermissionSet()
@@ -34,14 +67,15 @@ class PermissionSet:
         """
         self.cache = {}
 
-    def remove(self, permission):
+    def remove(self, permission, invalidate_cache=True):
         """
         Removes all settings for a given permission.
         @type permission: str
         @param permission: The permission to remove
         """
         self.permissions.pop(permission.lower(), None)
-        self.invalidate_cache()
+        if invalidate_cache:
+            self.invalidate_cache()
 
     def set(self, permission, value=True, invalidate_cache=True):
         """
