@@ -1,21 +1,62 @@
+### Utility methods
+def prepare(permission):
+    """
+    Prepares the given permission using unicode(permission).lower()
+    @type permission: str | unicode
+    @param permission: The permission to prepare
+    """
+    return unicode(permission).lower()
+
+
+### Permission tree
 class PermissionTree:
     def __init__(self):
         self.parent_tree = {}
         self.child_tree = {}
 
+    def add_inheritance(self, parent, child):
+        """
+
+
+        @type child: unicode
+        @type parent: unicode
+        """
+        parent = prepare(parent)
+        child = prepare(child)
+        if parent in self.child_tree:
+            self.child_tree[parent].extend(child)
+        else:
+            self.child_tree[parent] = [child]
+
+        if child in self.parent_tree:
+            self.parent_tree[child].extend(parent)
+        else:
+            self.parent_tree[child] = [parent]
+
     def get_parents(self, permission):
         """
 
-        @type permission: str | unicode
+        @type permission: unicode
         """
+        permission = prepare(permission)
         if permission not in self.parent_tree:
             return []
 
-        parents = self.parent_tree[permission]
+        return self.parent_tree[permission]
 
-        pass
+    def get_children(self, permission):
+        """
+
+        @type permission: unicode
+        """
+        permission = prepare(permission)
+        if permission not in self.child_tree:
+            return []
+
+        return self.child_tree[permission]
 
 
+### Initialize the default tree
 PermissionTree.default_tree = PermissionTree()
 
 
@@ -24,29 +65,29 @@ class PermissionSet:
     Represents a set of permissions.
     """
 
-    def __init__(self, tree=PermissionTree.default_tree):
+    def __init__(self, permission_tree=PermissionTree.default_tree):
         """
         Creates a new PermissionSet, default using the default_tree.
         Specify a PermissionTree if you would like to edit permission inheritance, or just modify
         PermissionTree.default_tree
 
-        @param tree: A permission tree to get inheriting permissions from
-        @type tree: PermissionTree
+        @param permission_tree: A permission tree to get inheriting permissions from
+        @type permission_tree: PermissionTree
         """
         self.permissions = {}
         self.cache = {}
-        self.permission_tree = tree
+        self.tree = permission_tree
 
     def __cmp__(self, other):
         if not isinstance(other, PermissionSet):
-            return False
+            return self.__class__.__name__.__cmp__(other.__class__.__name__)
         return self.permissions.__cmp__(other.permissions)
 
     def __getitem__(self, item):
-        return self.has(item)
+        return self.has(prepare(item))
 
     def __delitem__(self, key):
-        self.remove(key)
+        self.remove(prepare(key))
 
     def __invert__(self):
         inverted_set = PermissionSet()
@@ -70,10 +111,14 @@ class PermissionSet:
     def remove(self, permission, invalidate_cache=True):
         """
         Removes all settings for a given permission.
-        @type permission: str
+        @type permission: unicode
+        @type invalidate_cache: bool
         @param permission: The permission to remove
+        @param invalidate_cache: Whether or not to invalidate the cache after performing this action. Only specify False
+                if you are calling multiple changing methods and will call invalidate_cache afterwards
         """
-        self.permissions.pop(permission.lower(), None)
+        permission = prepare(permission)
+        self.permissions.pop(permission, None)
         if invalidate_cache:
             self.invalidate_cache()
 
@@ -81,12 +126,16 @@ class PermissionSet:
         """
         Adds or sets a permission in this PermissionSet.
 
+        @type permission: unicode
+        @type value: bool
+        @type invalidate_cache: bool
         @param permission: The permission to set
         @param value: Whether to set this permission to True or False, defaulting to True
         @param invalidate_cache: Whether or not to invalidate the cache after performing this action. Only specify False
                 if you are calling multiple changing methods and will call invalidate_cache afterwards
         """
-        self.permissions[permission.lower()] = value
+        permission = prepare(permission)
+        self.permissions[permission] = value
         if invalidate_cache:
             self.invalidate_cache()
 
@@ -101,56 +150,76 @@ class PermissionSet:
                 if you are calling multiple changing methods and will call invalidate_cache() afterwards
         """
         for permission in permissions.keys():
-            self.set(permission, value=permissions[permission], invalidate_cache=False)
+            self.set(prepare(permission), value=permissions[permission], invalidate_cache=False)
         if invalidate_cache:
             self.invalidate_cache()
 
+    def _get_value(self, permission, permission_method=None):
+        if permission_method is None:
+            permission_method = self.evaluate
+        if permission in self.cache:
+            return self.cache[permission]
+        else:
+            value = permission_method(permission)
+            self.cache[permission] = value
+            return value
+
     def evaluate(self, permission):
         """
-        Evaluates whether this PermissionSet has 'permission', defaulting to False if not set.
-        Will check each .* sub permission until the permission contains no '.'s.
+        Evaluates whether this PermissionSet has 'permission', defaulting to False.
 
-        For example, if given 'plugin.permission.give', will first check 'plugin.permission.give', then
-        'plugin.permission.*', then 'plugin.*'. If any of them evaluate to False or True, that is returned. If none of
-        those permissions are set, False is returned.
-
-        This method does not use the cache, you should use has for permission checking
-
-        @type permission: str | unicode
-        @param permission: Permission string to check
-        @return Whether or not the permission is set to true in this PermissionSet.
-        """
-        permission = permission.lower()
-        while permission not in self.permissions:
-            if '.' in permission:
-                permission = permission.rsplit('.', 1)[0] + "^all"
-            else:
-                return False
-
-        return self.permissions[permission]
-
-    def has(self, permission):
-        """
-        Evaluates whether this PermissionSet has the given permission, defaulting to False if not set.
-        Will check each .* sub permission until the permission contains no '.'s.
-
-        For example, if given 'plugin.permission.give', will first check 'plugin.permission.give', then
-        'plugin.permission.*', then 'plugin.*'. If any of them evaluate to False or True, that is returned. If none of
-        those permissions are set, False is returned.
+        Will first check the cache and permission set for the permission, then each of permission's parents, and each
+        of permission's parents' parents, until either a permission evaluates to True, or all parents are checked, and
+        found to be false.
+        Either way, the found value is stored in the cache, and then returned.
 
         This method will use the cache, make sure you have used invalidate_cache() after using any changing methods with
         the 'invalidate_cache=False' parameter.
 
-        @type permission: str | unicode
+        ** Warning **: This method may result in a stack overflow if the parent structure is circular
+
+        This method is mainly for internal use, you should use the `has` method for regular permission checking.
+
+        @type permission: unicode
+        @param permission: Permission string to check. Should be lowercase unicode.
+        @return Whether or not the permission is set to true in this PermissionSet.
+        """
+        if permission in self.cache:
+            return self.cache[permission]
+
+        if permission in self.permissions:
+            value = self.permissions[permission]
+        elif permission == "true":
+            value = True
+        else:
+            parents = self.tree.get_parents(permission)
+            for parent in parents:
+                value = self.evaluate(parent)
+                if value is True:
+                    break
+
+        self.cache[permission] = value
+        return value
+
+    def has(self, permission):
+        """
+        Evaluates whether this PermissionSet has 'permission', defaulting to False.
+
+        Will first check the cache and permission set for the permission, then each of permission's parents, and each
+        of permission's parents' parents, until either a permission evaluates to True, or all parents are checked, and
+        found to be false.
+        Either way, the found value is stored in the cache, and then returned.
+
+        ** Warning **: This method may result in a stack overflow if the parent structure is circular
+
+        This method will use the cache, make sure you have used invalidate_cache() after using any changing methods with
+        the 'invalidate_cache=False' parameter.
+
+        The 'permission' parameter is processed with unicode(permission).lower().
+
+        @type permission: unicode
         @param permission: Permission string to check
         @return Whether or not the permission is set to true in this PermissionSet.
         """
-        if not (isinstance(permission, str) or isinstance(permission, unicode)):
-            return False
-
-        if permission in self.cache:
-            return self.cache[permission]
-        else:
-            value = self.evaluate(permission)
-            self.cache[permission] = value
-            return value
+        permission = prepare(permission)
+        return self.evaluate(prepare(permission))
