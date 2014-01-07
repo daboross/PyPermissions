@@ -11,8 +11,8 @@ def prepare(permission):
 ### Permission tree
 class PermissionTree:
     def __init__(self):
-        self.parent_tree = {}
-        self.child_tree = {}
+        self._parent_tree = {}
+        self._child_tree = {}
 
     def add_inheritance(self, parent, child):
         """
@@ -23,15 +23,15 @@ class PermissionTree:
         """
         parent = prepare(parent)
         child = prepare(child)
-        if parent in self.child_tree:
-            self.child_tree[parent].extend(child)
+        if parent in self._child_tree:
+            self._child_tree[parent].extend(child)
         else:
-            self.child_tree[parent] = [child]
+            self._child_tree[parent] = [child]
 
-        if child in self.parent_tree:
-            self.parent_tree[child].extend(parent)
+        if child in self._parent_tree:
+            self._parent_tree[child].extend(parent)
         else:
-            self.parent_tree[child] = [parent]
+            self._parent_tree[child] = [parent]
 
     def get_parents(self, permission):
         """
@@ -39,10 +39,10 @@ class PermissionTree:
         @type permission: unicode
         """
         permission = prepare(permission)
-        if permission not in self.parent_tree:
+        if permission not in self._parent_tree:
             return []
 
-        return self.parent_tree[permission]
+        return self._parent_tree[permission]
 
     def get_children(self, permission):
         """
@@ -50,10 +50,10 @@ class PermissionTree:
         @type permission: unicode
         """
         permission = prepare(permission)
-        if permission not in self.child_tree:
+        if permission not in self._child_tree:
             return []
 
-        return self.child_tree[permission]
+        return self._child_tree[permission]
 
 
 ### Initialize the default tree
@@ -75,8 +75,8 @@ class PermissionSet:
         @type permission_tree: PermissionTree
         """
         self.permissions = {}
-        self.cache = {}
-        self.tree = permission_tree
+        self._cache = {}
+        self._tree = permission_tree
 
     def __cmp__(self, other):
         if not isinstance(other, PermissionSet):
@@ -106,7 +106,7 @@ class PermissionSet:
         """
         Invalidates the cache, useful when changing things in batch and using invalidate_cache=True.
         """
-        self.cache = {}
+        self._cache = {}
 
     def remove(self, permission, invalidate_cache=True):
         """
@@ -154,17 +154,7 @@ class PermissionSet:
         if invalidate_cache:
             self.invalidate_cache()
 
-    def _get_value(self, permission, permission_method=None):
-        if permission_method is None:
-            permission_method = self.evaluate
-        if permission in self.cache:
-            return self.cache[permission]
-        else:
-            value = permission_method(permission)
-            self.cache[permission] = value
-            return value
-
-    def evaluate(self, permission):
+    def _evaluate(self, permission):
         """
         Evaluates whether this PermissionSet has 'permission', defaulting to False.
 
@@ -178,27 +168,27 @@ class PermissionSet:
 
         ** Warning **: This method may result in a stack overflow if the parent structure is circular
 
-        This method is mainly for internal use, you should use the `has` method for regular permission checking.
-
         @type permission: unicode
         @param permission: Permission string to check. Should be lowercase unicode.
         @return Whether or not the permission is set to true in this PermissionSet.
         """
-        if permission in self.cache:
-            return self.cache[permission]
+        value = False
+
+        if permission in self._cache:
+            return self._cache[permission]
 
         if permission in self.permissions:
             value = self.permissions[permission]
         elif permission == "true":
             value = True
         else:
-            parents = self.tree.get_parents(permission)
+            parents = self._tree.get_parents(permission)
             for parent in parents:
-                value = self.evaluate(parent)
+                value = self._evaluate(parent)
                 if value is True:
                     break
 
-        self.cache[permission] = value
+        self._cache[permission] = value
         return value
 
     def has(self, permission):
@@ -222,4 +212,4 @@ class PermissionSet:
         @return Whether or not the permission is set to true in this PermissionSet.
         """
         permission = prepare(permission)
-        return self.evaluate(prepare(permission))
+        return self._evaluate(prepare(permission))
