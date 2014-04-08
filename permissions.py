@@ -2,10 +2,10 @@
 def prepare(permission):
     """
     Prepares the given permission using unicode(permission).lower()
-    @type permission: str | unicode
+    @type permission: str
     @param permission: The permission to prepare
     """
-    return unicode(permission).lower()
+    return str(permission).lower()
 
 
 ### Permission tree
@@ -16,8 +16,6 @@ class PermissionTree:
 
     def add_inheritance(self, parent, child):
         """
-
-
         @type child: unicode
         @type parent: unicode
         """
@@ -98,9 +96,6 @@ class PermissionSet:
 
     def __str__(self):
         return str(self.permissions)
-
-    def __unicode__(self):
-        return unicode(self.permissions)
 
     def invalidate_cache(self):
         """
