@@ -2,10 +2,12 @@
 def prepare(permission):
     """
     Prepares the given permission using unicode(permission).lower()
-    @type permission: str
-    @param permission: The permission to prepare
+    :type permission: str
+    :param permission: The permission to prepare
     """
-    return str(permission).lower()
+    if isinstance(permission, str) or isinstance(permission, bytes):
+        return str(permission).lower()
+    return permission
 
 
 ### Permission tree
@@ -16,8 +18,8 @@ class PermissionTree:
 
     def add_inheritance(self, parent, child):
         """
-        @type child: unicode
-        @type parent: unicode
+        :type child: str | PermissionSet
+        :type parent: str | PermissionSet
         """
         parent = prepare(parent)
         child = prepare(child)
@@ -33,8 +35,7 @@ class PermissionTree:
 
     def get_parents(self, permission):
         """
-
-        @type permission: unicode
+        :type permission: str | PermissionSet
         """
         permission = prepare(permission)
         if permission not in self._parent_tree:
@@ -44,8 +45,7 @@ class PermissionTree:
 
     def get_children(self, permission):
         """
-
-        @type permission: unicode
+        :type permission: str | PermissionSet
         """
         permission = prepare(permission)
         if permission not in self._child_tree:
@@ -69,10 +69,11 @@ class PermissionSet:
         Specify a PermissionTree if you would like to edit permission inheritance, or just modify
         PermissionTree.default_tree
 
-        @param permission_tree: A permission tree to get inheriting permissions from
-        @type permission_tree: PermissionTree
+        :param permission_tree: A permission tree to get inheriting permissions from
+        :type permission_tree: PermissionTree
         """
         self.permissions = {}
+        self.set_parents = []
         self._cache = {}
         self._tree = permission_tree
 
@@ -84,12 +85,15 @@ class PermissionSet:
     def __getitem__(self, item):
         return self.has(prepare(item))
 
+    def __setitem__(self, key, value):
+        return self.set(key, value=value)
+
     def __delitem__(self, key):
         self.remove(prepare(key))
 
     def __invert__(self):
         inverted_set = PermissionSet()
-        for permission, value in self.permissions.iteritems():
+        for permission, value in self.permissions.items():
             inverted_set.set(permission, value=not value, invalidate_cache=False)
         inverted_set.invalidate_cache()
         return inverted_set
@@ -106,10 +110,10 @@ class PermissionSet:
     def remove(self, permission, invalidate_cache=True):
         """
         Removes all settings for a given permission.
-        @type permission: unicode
-        @type invalidate_cache: bool
-        @param permission: The permission to remove
-        @param invalidate_cache: Whether or not to invalidate the cache after performing this action. Only specify False
+        :type permission: str
+        :type invalidate_cache: bool
+        :param permission: The permission to remove
+        :param invalidate_cache: Whether or not to invalidate the cache after performing this action. Only specify False
                 if you are calling multiple changing methods and will call invalidate_cache afterwards
         """
         permission = prepare(permission)
@@ -121,12 +125,12 @@ class PermissionSet:
         """
         Adds or sets a permission in this PermissionSet.
 
-        @type permission: unicode
-        @type value: bool
-        @type invalidate_cache: bool
-        @param permission: The permission to set
-        @param value: Whether to set this permission to True or False, defaulting to True
-        @param invalidate_cache: Whether or not to invalidate the cache after performing this action. Only specify False
+        :type permission: str
+        :type value: bool
+        :type invalidate_cache: bool
+        :param permission: The permission to set
+        :param value: Whether to set this permission to True or False, defaulting to True
+        :param invalidate_cache: Whether or not to invalidate the cache after performing this action. Only specify False
                 if you are calling multiple changing methods and will call invalidate_cache afterwards
         """
         permission = prepare(permission)
@@ -138,10 +142,10 @@ class PermissionSet:
         """
         Adds a batch of permissions to this PermissionSet.
 
-        @type permissions: dict
-        @type invalidate_cache: bool
-        @param permissions: Dictionary from str permission to boolean value
-        @param invalidate_cache; Whether or not to invalidate the cache after performing this action. Only specify False
+        :type permissions: dict[str, bool]
+        :type invalidate_cache: bool
+        :param permissions: Dictionary from str permission to boolean value
+        :param invalidate_cache; Whether or not to invalidate the cache after performing this action. Only specify False
                 if you are calling multiple changing methods and will call invalidate_cache() afterwards
         """
         for permission in permissions.keys():
@@ -149,7 +153,7 @@ class PermissionSet:
         if invalidate_cache:
             self.invalidate_cache()
 
-    def _evaluate(self, permission):
+    def _evaluate(self, permission, parents=None):
         """
         Evaluates whether this PermissionSet has 'permission', defaulting to False.
 
@@ -163,24 +167,34 @@ class PermissionSet:
 
         ** Warning **: This method may result in a stack overflow if the parent structure is circular
 
-        @type permission: unicode
-        @param permission: Permission string to check. Should be lowercase unicode.
-        @return Whether or not the permission is set to true in this PermissionSet.
+        :type permission: unicode
+        :param permission: Permission string to check. Should be lowercase unicode.
+        :return Whether or not the permission is set to true in this PermissionSet.
         """
         value = False
+
+        if parents is None:
+            parents = self._tree.get_parents(self)
 
         if permission in self._cache:
             return self._cache[permission]
 
-        if permission in self.permissions:
-            value = self.permissions[permission]
-        elif permission == "true":
+        if permission == "true":
             value = True
-        else:
-            parents = self._tree.get_parents(permission)
-            for parent in parents:
-                value = self._evaluate(parent)
-                if value is True:
+        elif permission in self.permissions:
+            value = self.permissions[permission]
+
+        if not value:
+            for set_parent in parents:
+                value = set_parent._evaluate(permission)
+                if value:
+                    break
+
+        if not value:
+            perm_parents = self._tree.get_parents(permission)
+            for perm_parent in perm_parents:
+                value = self._evaluate(perm_parent, parents=parents)
+                if value:
                     break
 
         self._cache[permission] = value
@@ -202,9 +216,9 @@ class PermissionSet:
 
         The 'permission' parameter is processed with unicode(permission).lower().
 
-        @type permission: unicode
-        @param permission: Permission string to check
-        @return Whether or not the permission is set to true in this PermissionSet.
+        :type permission: unicode
+        :param permission: Permission string to check
+        :return Whether or not the permission is set to true in this PermissionSet.
         """
         permission = prepare(permission)
         return self._evaluate(prepare(permission))
